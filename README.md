@@ -2,6 +2,9 @@
 
 A web application to upload documents (PDF or text) and ask questions using a local LLM with semantic search. The system uses embeddings (SentenceTransformers) and FAISS for document retrieval, and a text-to-text generation model (Flan-T5-small) for answering queries.
 
+
+Demo Video : https://drive.google.com/file/d/1umgOK81EgjYt1aRaytwnvLDQ85cSuUrT/view?usp=drivesdk
+
 ---
 
 ## Features
@@ -68,10 +71,15 @@ Start the FastAPI backend:
 ````
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ````
+
+
 ------------------
+
 Open index.html in a browser or deploy frontend separately.
 
 Access the frontend at http://127.0.0.1:5500 (if using Live Server in VSCode).
+
+You can also check by running in localhost: http://127.0.0.1:8000/docs
 
 -------------------
 ### Usage
