@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+faiss-cpu
+sentence-transformers
+transformers
+torch
+PyPDF2
+python-multipart
+pickle5
+nltk
+

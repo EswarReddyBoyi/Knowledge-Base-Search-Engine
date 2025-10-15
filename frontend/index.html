@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Base Search Engine</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+        min-height: 100vh;
+        padding: 20px;
+        color: #1f2937;
+    }
+
+    h1 { text-align: center; font-size: 2.5rem; margin-bottom: 30px; color: #0f172a; }
+
+    .container {
+        max-width: 900px;
+        margin: 0 auto 30px auto;
+        background: #ffffffcc;
+        backdrop-filter: blur(10px);
+        padding: 25px 30px;
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    label, .section-title {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 8px;
+        font-size: 1.05rem;
+        color: #1e3a8a;
+    }
+
+    input[type="text"], input[type="file"], select {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        font-size: 1rem;
+    }
+
+    button {
+        padding: 12px;
+        font-size: 1rem;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: linear-gradient(45deg, #6366f1, #3b82f6);
+        color: white;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    button:hover {
+        background: linear-gradient(45deg, #3b82f6, #6366f1);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    }
+
+    .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .delete-btn {
+        background: #ef4444;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .delete-btn:hover {
+        background: #b91c1c;
+        transform: scale(1.2);
+    }
+
+    .result {
+        background: #ecfdf5;
+        border-left: 5px solid #10b981;
+        padding: 15px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        word-break: break-word;
+    }
+
+    .retrieved-doc {
+        background: #fff7ed;
+        border-left: 5px solid #f59e0b;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        word-break: break-word;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    /* New small button style for Copy/Download */
+.small-btn {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #10b981, #047857); /* green gradient */
+    color: white;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.small-btn:hover {
+    background: linear-gradient(45deg, #047857, #10b981);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+    .meta { font-size: 0.85rem; color: #475569; margin-bottom: 5px; font-weight: 500; }
+
+    @media screen and (max-width: 768px) {
+        body { padding: 15px; }
+        .container { padding: 20px 15px; }
+        h1 { font-size: 2rem; }
+        input, select, button { font-size: 0.95rem; padding: 10px; }
+    }
+    @media screen and (max-width: 480px) {
+        h1 { font-size: 1.8rem; }
+        input, select, button { font-size: 0.9rem; padding: 8px; }
+        .result, .retrieved-doc { padding: 10px; border-radius: 8px; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Knowledge Base Search Engine</h1>
+
+    <!-- Previously Uploaded Files -->
+    <div class="section-title">Previously Uploaded Files</div>
+    <div id="uploaded-files"></div>
+</div>
+
+<div class="container">
+    <!-- New Upload Section -->
+    <div class="section-title">Upload New Files</div>
+    <input type="file" id="files" multiple>
+    <button onclick="uploadFiles()">Upload</button>
+    <div id="upload-status"></div>
+    <div id="new-uploads"></div>
+</div>
+
+<div class="container">
+    <!-- Query Section -->
+    <div class="section-title">Ask a Question</div>
+    <input type="text" id="query" placeholder="Type your question here...">
+    <label>Number of top results to retrieve</label>
+    <select id="top_k">
+        <option value="1">1</option>
+        <option value="3" selected>3</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+    </select>
+    <button onclick="queryKB()">Search</button>
+
+    <div id="answer" class="result" style="display:none;">
+        <div>
+            <button class="small-btn" onclick="copyAnswer()">Copy Answer</button>
+            <button class="small-btn" onclick="downloadAnswer()">Download Answer</button>
+        </div>
+        <p id="answer-text"></p>
+    </div>
+
+    <div id="retrieved-docs"></div>
+</div>
+
+<script>
+const backendURL = "http://127.0.0.1:8000";
+
+// Load previously uploaded files
+async function loadUploadedFiles() {
+    try {
+        const res = await fetch(`${backendURL}/files`);
+        const data = await res.json();
+        const container = document.getElementById("uploaded-files");
+        if (data.files && data.files.length > 0) {
+            container.innerHTML = `<ul>${data.files.map(f => `
+                <li class="file-item">${f} 
+                    <span class="delete-btn" onclick="deleteFile('${f}')">✖</span>
+                </li>`).join('')}</ul>`;
+        } else {
+            container.innerHTML = "No previously uploaded files.";
+        }
+    } catch (err) { console.error(err); }
+}
+
+// Delete file
+async function deleteFile(filename) {
+    if(!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+    try {
+        const res = await fetch(`${backendURL}/delete-file`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename })
+        });
+        const data = await res.json();
+        if(data.status === "success") {
+            alert(`${filename} deleted successfully.`);
+            loadUploadedFiles();
+        } else {
+            alert(`Failed to delete ${filename}.`);
+        }
+    } catch(err) { console.error(err); alert("Error deleting file."); }
+}
+
+// Upload new files
+async function uploadFiles() {
+    const files = document.getElementById('files').files;
+    if (files.length === 0) { alert("Please select files."); return; }
+
+    const formData = new FormData();
+    for (let f of files) formData.append("files", f);
+
+    const statusDiv = document.getElementById("upload-status");
+    const newUploadsDiv = document.getElementById("new-uploads");
+    statusDiv.innerHTML = "Uploading...";
+    newUploadsDiv.innerHTML = "";
+
+    try {
+        const res = await fetch(`${backendURL}/upload`, { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.status === "success") {
+            statusDiv.innerHTML = `✅ Uploaded ${data.documents_added} document(s) successfully.`;
+
+            const listHTML = `<ul>${Array.from(files).map(f => `<li>${f.name}</li>`).join('')}</ul>`;
+            newUploadsDiv.innerHTML = listHTML;
+
+            await loadUploadedFiles();
+        } else {
+            statusDiv.innerHTML = "❌ Upload failed.";
+        }
+    } catch (err) {
+        console.error(err);
+        statusDiv.innerHTML = "❌ Upload error. See console.";
+    }
+}
+
+// Query backend
+async function queryKB() {
+    const q = document.getElementById('query').value.trim();
+    const top_k = document.getElementById('top_k').value;
+    if (!q) { alert("Please enter a query."); return; }
+
+    document.getElementById('answer').style.display = "none";
+    document.getElementById('retrieved-docs').innerHTML = "Loading...";
+
+    try {
+        const res = await fetch(`${backendURL}/query?q=${encodeURIComponent(q)}&top_k=${top_k}`);
+        const data = await res.json();
+
+        document.getElementById('answer-text').innerText = data.answer;
+        document.getElementById('answer').style.display = "block";
+
+        const docsDiv = document.getElementById('retrieved-docs');
+        docsDiv.innerHTML = "";
+        data.retrieved_docs.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = "retrieved-doc";
+            div.innerHTML = `<div class="meta">File: ${doc.file} | Chunk ID: ${doc.chunk_id} | Score: ${doc.score.toFixed(4)}</div>${doc.text}`;
+            docsDiv.appendChild(div);
+        });
+    } catch (err) {
+        console.error(err);
+        document.getElementById('retrieved-docs').innerHTML = "❌ Error fetching results. See console.";
+    }
+}
+
+function copyAnswer() {
+    const text = document.getElementById('answer-text').innerText;
+    navigator.clipboard.writeText(text);
+    alert("Answer copied to clipboard!");
+}
+
+function downloadAnswer() {
+    const text = document.getElementById('answer-text').innerText;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "answer.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+window.onload = loadUploadedFiles;
+</script>
+</body>
+</html>
